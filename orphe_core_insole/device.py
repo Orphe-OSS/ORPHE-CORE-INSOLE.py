@@ -566,7 +566,8 @@ class OrpheCoreInsole:
         self._emit('sensor_values', packet)
 
         if packet.header in self.profile.lost_data_headers and packet.serial_number is not None:
-            if packet.serial_number - self.serial_number_prev > 1:
+            # serial は u16 なので、65535 → 0 の周回をまたいでも差を 65536 を法として測る
+            if (packet.serial_number - self.serial_number_prev) % 65536 > 1:
                 self._emit('lost_data', self.serial_number_prev, packet.serial_number)
             self.serial_number_prev = packet.serial_number
 

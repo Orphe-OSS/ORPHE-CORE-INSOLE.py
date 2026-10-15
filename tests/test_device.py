@@ -199,6 +199,22 @@ class TestSensorValues(unittest.IsolatedAsyncioTestCase):
         device.handle_sensor_values(packet)
         self.assertEqual(recorder.of('lost_data'), [(0, 10)])
 
+    async def test_lost_data_across_serial_wraparound(self):
+        device, _ = await connected()
+        recorder = Recorder()
+        recorder.listen(device, 'lost_data')
+        await device.start_sensor_values_notification()
+        for serial in (65534, 65535, 0, 2):
+            device.handle_sensor_values(
+                build_packet_56(quat=(0, 0, 0, 0), gyro=(0, 0, 0), acc=(0, 0, 0), press=(0,) * 6, serial=serial))
+        self.assertEqual(recorder.of('lost_data'), [(0, 65534), (0, 2)])
+
+        device.handle_sensor_values(
+            build_packet_56(quat=(0, 0, 0, 0), gyro=(0, 0, 0), acc=(0, 0, 0), press=(0,) * 6, serial=65535))
+        device.handle_sensor_values(
+            build_packet_56(quat=(0, 0, 0, 0), gyro=(0, 0, 0), acc=(0, 0, 0), press=(0,) * 6, serial=1))
+        self.assertEqual(recorder.of('lost_data')[-1], (65535, 1))
+
     async def test_ignored_after_disconnect(self):
         device, _ = await connected()
         recorder = Recorder()
